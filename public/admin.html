@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrar · Videoteca</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="encabezado">
+    <div class="contenido">
+      <a class="logo" href="/">Video<span>teca</span></a>
+      <div>
+        <a href="/">Ver videoteca</a>
+        <button id="salir" class="boton secundario pequeno oculto">Cerrar sesión</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenido">
+    <!-- Inicio de sesión -->
+    <section id="login" class="panel oculto" style="max-width: 420px; margin: 40px auto;">
+      <h1>Acceso de administrador</h1>
+      <p class="subtitulo">Ingresa la contraseña para subir y gestionar tutoriales.</p>
+      <form id="formLogin">
+        <div class="campo">
+          <label for="password">Contraseña</label>
+          <input id="password" type="password" required autofocus>
+        </div>
+        <button class="boton" type="submit">Entrar</button>
+        <p id="msgLogin" class="mensaje error"></p>
+      </form>
+    </section>
+
+    <!-- Panel -->
+    <div id="panel" class="oculto">
+      <section class="panel">
+        <h1>Subir nuevo tutorial</h1>
+        <form id="formSubir">
+          <div class="campo">
+            <label for="titulo">Título *</label>
+            <input id="titulo" name="titulo" type="text" maxlength="150" required>
+          </div>
+          <div class="campo">
+            <label for="categoria">Categoría</label>
+            <input id="categoria" name="categoria" type="text" maxlength="80" list="listaCategorias" placeholder="Ej.: Matemáticas, Excel, Moodle...">
+            <datalist id="listaCategorias"></datalist>
+            <small>Escribe una nueva o elige una existente.</small>
+          </div>
+          <div class="campo">
+            <label for="descripcion">Descripción</label>
+            <textarea id="descripcion" name="descripcion" maxlength="5000"></textarea>
+          </div>
+          <div class="campo">
+            <label for="video">Archivo de video *</label>
+            <input id="video" name="video" type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" required>
+            <small>Formatos: MP4 (recomendado), WebM, OGG o MOV.</small>
+          </div>
+          <div class="campo">
+            <label for="miniatura">Miniatura (opcional)</label>
+            <input id="miniatura" name="miniatura" type="file" accept="image/jpeg,image/png,image/webp">
+            <small>Si no subes una, se mostrará un fotograma del video.</small>
+          </div>
+          <button id="btnSubir" class="boton" type="submit">Subir tutorial</button>
+          <div id="barra" class="progreso oculto"><div></div></div>
+          <p id="msgSubir" class="mensaje"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Tutoriales publicados (<span id="total">0</span>)</h2>
+        <div id="lista" class="lista-admin"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="comun.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let videos = [];
+
+    async function comprobarSesion() {
+      const { admin } = await pedirJSON('/api/sesion');
+      $('login').classList.toggle('oculto', admin);
+      $('panel').classList.toggle('oculto', !admin);
+      $('salir').classList.toggle('oculto', !admin);
+      if (admin) cargarLista();
+    }
+
+    $('formLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('msgLogin').textContent = '';
+      try {
+        await pedirJSON('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: $('password').value }),
+        });
+        $('password').value = '';
+        comprobarSesion();
+      } catch (err) {
+        $('msgLogin').textContent = err.message;
+      }
+    });
+
+    $('salir').addEventListener('click', async () => {
+      await pedirJSON('/api/logout', { method: 'POST' });
+      comprobarSesion();
+    });
+
+    // Se usa XMLHttpRequest para poder mostrar el progreso de la subida.
+    $('formSubir').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const msg = $('msgSubir');
+      const barra = $('barra');
+      msg.textContent = '';
+      msg.className = 'mensaje';
+      $('btnSubir').disabled = true;
+      barra.classList.remove('oculto');
+      barra.firstElementChild.style.width = '0';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/videos');
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable) return;
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        barra.firstElementChild.style.width = pct + '%';
+        msg.textContent = `Subiendo... ${pct}%`;
+      };
+      xhr.onload = () => {
+        $('btnSubir').disabled = false;
+        let datos = {};
+        try { datos = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status === 201) {
+          msg.textContent = '✔ Tutorial publicado correctamente.';
+          msg.classList.add('exito');
+          form.reset();
+          cargarLista();
+        } else {
+          if (xhr.status === 401) comprobarSesion();
+          msg.textContent = datos.error || 'No se pudo subir el video.';
+          msg.classList.add('error');
+        }
+        barra.classList.add('oculto');
+      };
+      xhr.onerror = () => {
+        $('btnSubir').disabled = false;
+        barra.classList.add('oculto');
+        msg.textContent = 'Error de conexión durante la subida.';
+        msg.classList.add('error');
+      };
+      xhr.send(new FormData(form));
+    });
+
+    async function cargarLista() {
+      videos = await pedirJSON('/api/videos');
+      const categorias = await pedirJSON('/api/categorias');
+      $('listaCategorias').innerHTML = categorias.map((c) => `<option value="${escaparHTML(c)}">`).join('');
+      $('total').textContent = videos.length;
+      $('lista').innerHTML = videos.length ? videos.map((v) => `
+        <div class="fila-admin" data-id="${escaparHTML(v.id)}">
+          ${htmlMiniatura(v)}
+          <div>
+            <span class="etiqueta">${escaparHTML(v.categoria)}</span>
+            <strong style="display:block">${escaparHTML(v.titulo)}</strong>
+            <span class="meta">${formatearFecha(v.fecha)} · ${formatearTamano(v.tamano)}</span>
+          </div>
+          <div class="acciones">
+            <a class="boton secundario pequeno" href="/ver.html?id=${encodeURIComponent(v.id)}" target="_blank">Ver</a>
+            <button class="boton secundario pequeno" data-accion="editar">Editar</button>
+            <button class="boton peligro pequeno" data-accion="eliminar">Eliminar</button>
+          </div>
+        </div>`).join('') : '<p class="meta">Aún no has subido tutoriales.</p>';
+    }
+
+    $('lista').addEventListener('click', async (e) => {
+      const boton = e.target.closest('button[data-accion]');
+      if (!boton) return;
+      const fila = boton.closest('.fila-admin');
+      const video = videos.find((v) => v.id === fila.dataset.id);
+
+      if (boton.dataset.accion === 'eliminar') {
+        if (!confirm(`¿Eliminar "${video.titulo}"? Esta acción no se puede deshacer.`)) return;
+        try {
+          await pedirJSON('/api/videos/' + encodeURIComponent(video.id), { method: 'DELETE' });
+          cargarLista();
+        } catch (err) { alert(err.message); }
+      }
+
+      if (boton.dataset.accion === 'editar' && !fila.querySelector('form')) {
+        const form = document.createElement('form');
+        form.innerHTML = `
+          <div class="campo"><label>Título</label><input name="titulo" type="text" maxlength="150" required></div>
+          <div class="campo"><label>Categoría</label><input name="categoria" type="text" maxlength="80" list="listaCategorias"></div>
+          <div class="campo"><label>Descripción</label><textarea name="descripcion" maxlength="5000"></textarea></div>
+          <button class="boton pequeno" type="submit">Guardar</button>
+          <button class="boton secundario pequeno" type="button" data-cancelar>Cancelar</button>`;
+        form.titulo.value = video.titulo;
+        form.categoria.value = video.categoria;
+        form.descripcion.value = video.descripcion;
+        form.querySelector('[data-cancelar]').onclick = () => form.remove();
+        form.onsubmit = async (ev) => {
+          ev.preventDefault();
+          try {
+            await pedirJSON('/api/videos/' + encodeURIComponent(video.id), {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                titulo: form.titulo.value,
+                categoria: form.categoria.value,
+                descripcion: form.descripcion.value,
+              }),
+            });
+            cargarLista();
+          } catch (err) { alert(err.message); }
+        };
+        fila.appendChild(form);
+      }
+    });
+
+    comprobarSesion();
+  </script>
+</body>
+</html>

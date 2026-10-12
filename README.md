@@ -1,56 +1,55 @@
-# Videoteca de tutoriales
+# Videoteca de tutoriales (Streamlit)
 
-Plataforma sencilla para publicar videos tutoriales y que los estudiantes los vean desde el navegador.
+Aplicación sencilla para publicar videos tutoriales y que los estudiantes los vean desde el navegador.
 
 ## Funciones
 
-**Para estudiantes** (`/`)
-- Catálogo de tutoriales en tarjetas con miniatura.
-- Buscador por título, descripción o categoría.
-- Filtro por categorías.
-- Reproductor con opción de adelantar/retroceder, y que recuerda en qué minuto se quedó cada estudiante.
-- Lista de otros tutoriales de la misma categoría.
+**Videoteca** (para estudiantes)
+- Catálogo de tutoriales en tarjetas.
+- Buscador por título, descripción o categoría y filtro por categorías.
+- Página de reproducción con descripción y otros tutoriales de la misma categoría.
 
-**Para administradores** (`/admin.html`)
-- Acceso con contraseña.
-- Subida de videos (MP4, WebM, OGG, MOV) con barra de progreso y miniatura opcional.
-- Editar título, categoría y descripción.
-- Eliminar tutoriales.
+**Administrar** (con contraseña)
+- Subir videos (MP4, WebM, OGG, MOV) o agregar un enlace de YouTube.
+- Miniatura opcional.
+- Editar título, categoría y descripción; eliminar tutoriales.
 
-## Instalación
+## Ejecutar en tu computadora
 
-Requiere [Node.js](https://nodejs.org) 18 o superior.
+Requiere Python 3.9 o superior.
 
 ```bash
-npm install
-ADMIN_PASSWORD="tu-contraseña-segura" npm start
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-Abre http://localhost:3000 para ver la videoteca y http://localhost:3000/admin.html para subir videos.
+Se abrirá http://localhost:8501. La sección **Administrar** está en el menú lateral.
 
-En Windows (PowerShell):
+Contraseña de administrador: copia `.streamlit/secrets.toml.example` como `.streamlit/secrets.toml`
+y cambia el valor de `ADMIN_PASSWORD`. Si no la defines, la contraseña es `admin123`.
 
-```powershell
-npm install
-$env:ADMIN_PASSWORD="tu-contraseña-segura"; npm start
-```
+## Publicar en Streamlit Community Cloud
+
+1. Entra en https://share.streamlit.io e inicia sesión con tu cuenta de GitHub.
+2. Pulsa **Create app → Deploy a public app from GitHub**.
+3. Elige el repositorio `videoteca`, la rama `main` y el archivo `app.py`.
+4. En **Advanced settings → Secrets** escribe:
+   ```toml
+   ADMIN_PASSWORD = "tu-contraseña-segura"
+   ```
+5. Pulsa **Deploy** y comparte el enlace con tus estudiantes.
+
+### ⚠️ Importante sobre el almacenamiento
+
+Streamlit Community Cloud **no guarda archivos de forma permanente**: cuando la app se reinicia
+(por inactividad o por una actualización), se borran los videos subidos y la lista `data/videos.json`.
+
+Mientras tanto, la opción más segura es publicar los tutoriales como **enlaces de YouTube**
+(pueden ser videos "no listados") en lugar de subir el archivo. Para guardar los datos de forma
+permanente hace falta conectar un almacenamiento externo (por ejemplo, Supabase o Google Drive).
 
 ## Configuración
 
-| Variable         | Descripción                                   | Valor por defecto |
-|------------------|-----------------------------------------------|-------------------|
-| `ADMIN_PASSWORD` | Contraseña del panel de administración        | `admin123` (¡cámbiala!) |
-| `PORT`           | Puerto del servidor                           | `3000`            |
-| `MAX_VIDEO_MB`   | Tamaño máximo por video, en MB                | `2048`            |
-
-## Dónde se guardan los datos
-
-- `uploads/`: los archivos de video y miniaturas.
-- `data/videos.json`: título, descripción y categoría de cada video.
-
-Haz copias de seguridad de ambas carpetas. Ninguna se sube a Git.
-
-## Recomendaciones
-
-- Usa **MP4 (H.264)**: es el formato que funciona en todos los navegadores y celulares.
-- Para publicarlo en internet, despliega en un servidor con disco persistente (VPS, Render con disco, Railway, etc.) y usa HTTPS.
+- `.streamlit/config.toml`: `maxUploadSize` define el tamaño máximo de subida (1024 MB).
+- `uploads/`: archivos de video y miniaturas.
+- `data/videos.json`: datos de cada tutorial.

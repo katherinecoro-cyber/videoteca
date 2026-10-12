@@ -1,5 +1,5 @@
-node_modules/
+__pycache__/
 uploads/*
 !uploads/.gitkeep
 data/videos.json
-.env
+.streamlit/secrets.toml

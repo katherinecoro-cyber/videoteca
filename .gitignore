@@ -3,3 +3,4 @@ uploads/*
 !uploads/.gitkeep
 data/videos.json
 .streamlit/secrets.toml
+*.zip

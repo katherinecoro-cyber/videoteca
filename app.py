@@ -1,19 +1,23 @@
 """Videoteca de tutoriales hecha con Streamlit.
 
 Los estudiantes buscan y ven tutoriales; el administrador sube videos
-(archivo, o enlace de YouTube o Google Drive) desde la sección "Administrar".
+(archivo o enlace de YouTube) desde la sección "Administrar".
 """
 
 import hmac
-import re
+import json
+import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
-import almacen
-from almacen import ErrorAlmacen
+BASE = Path(__file__).parent
+DATA_FILE = BASE / "data" / "videos.json"
+UPLOAD_DIR = BASE / "uploads"
+DATA_FILE.parent.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 FORMATOS_VIDEO = ["mp4", "webm", "ogg", "mov"]
 FORMATOS_IMAGEN = ["jpg", "jpeg", "png", "webp"]
@@ -21,39 +25,39 @@ FORMATOS_IMAGEN = ["jpg", "jpeg", "png", "webp"]
 st.set_page_config(page_title="Videoteca de Tutoriales", page_icon="🎬", layout="wide")
 
 
-# ---------- Utilidades ----------
+# ---------- Datos ----------
 
-def id_youtube(url):
-    m = re.search(r"(?:youtu\.be/|[?&]v=|/shorts/|/embed/|/live/)([\w-]{11})", url or "")
-    return m.group(1) if m else None
-
-
-def id_drive(url):
-    if "drive.google.com" not in (url or ""):
-        return None
-    m = re.search(r"/d/([\w-]{20,})|[?&]id=([\w-]{20,})", url)
-    return (m.group(1) or m.group(2)) if m else None
+def leer_videos():
+    try:
+        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
 
 
-def mostrar_video(video):
-    if video.get("url") and id_drive(video["url"]):
-        components.iframe(f"https://drive.google.com/file/d/{id_drive(video['url'])}/preview", height=480)
-    elif video.get("url"):
-        st.video(video["url"])
-    else:
-        st.video(almacen.ruta_archivo(video["archivo"]))
+def guardar_videos(videos):
+    tmp = DATA_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(videos, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(DATA_FILE)
 
 
-def mostrar_miniatura(video):
-    url = video.get("url")
-    if video.get("miniatura"):
-        st.image(almacen.ruta_archivo(video["miniatura"]), use_container_width=True)
-    elif id_youtube(url):
-        st.image(f"https://img.youtube.com/vi/{id_youtube(url)}/hqdefault.jpg", use_container_width=True)
-    elif id_drive(url):
-        st.image(f"https://drive.google.com/thumbnail?id={id_drive(url)}&sz=w640", use_container_width=True)
-    else:
-        mostrar_video(video)
+def guardar_archivo(archivo):
+    """Guarda un archivo subido con un nombre único y devuelve ese nombre."""
+    extension = Path(archivo.name).suffix.lower()
+    nombre = f"{uuid.uuid4()}{extension}"
+    (UPLOAD_DIR / nombre).write_bytes(archivo.getbuffer())
+    return nombre
+
+
+def borrar_archivo(nombre):
+    if nombre:
+        (UPLOAD_DIR / Path(nombre).name).unlink(missing_ok=True)
+
+
+def fuente_video(video):
+    """Ruta local o enlace que entiende st.video."""
+    if video.get("url"):
+        return video["url"]
+    return str(UPLOAD_DIR / video["archivo"])
 
 
 def categorias(videos):
@@ -64,26 +68,21 @@ def fecha_legible(iso):
     return datetime.fromisoformat(iso).strftime("%d/%m/%Y")
 
 
-def cargar_videos():
-    try:
-        return sorted(almacen.leer_videos(), key=lambda v: v["fecha"], reverse=True)
-    except (ErrorAlmacen, OSError) as e:
-        st.error(f"No se pudo cargar la lista de tutoriales. {e}")
-        st.stop()
-
-
 def contrasena_admin():
     try:
         return st.secrets["ADMIN_PASSWORD"]
     except (KeyError, FileNotFoundError):
-        return "admin123"
+        return os.environ.get("ADMIN_PASSWORD", "admin123")
 
 
 # ---------- Vista de estudiantes ----------
 
 def tarjeta(video, columna):
     with columna.container(border=True):
-        mostrar_miniatura(video)
+        if video.get("miniatura"):
+            st.image(str(UPLOAD_DIR / video["miniatura"]), use_container_width=True)
+        else:
+            st.video(fuente_video(video))
         st.caption(video["categoria"].upper())
         st.markdown(f"**{video['titulo']}**")
         if video["descripcion"]:
@@ -101,7 +100,7 @@ def pagina_reproductor(video, videos):
 
     principal, lateral = st.columns([3, 1], gap="large")
     with principal:
-        mostrar_video(video)
+        st.video(fuente_video(video))
         st.title(video["titulo"])
         st.caption(f"{video['categoria']} · {fecha_legible(video['fecha'])}")
         if video["descripcion"]:
@@ -119,7 +118,7 @@ def pagina_reproductor(video, videos):
 
 
 def pagina_catalogo():
-    videos = cargar_videos()
+    videos = sorted(leer_videos(), key=lambda v: v["fecha"], reverse=True)
 
     seleccionado = st.query_params.get("video")
     if seleccionado:
@@ -167,57 +166,47 @@ def formulario_login():
 
 def formulario_subida(videos):
     st.subheader("Subir nuevo tutorial")
-    origen = st.radio("Origen del video", ["Enlace de YouTube o Google Drive", "Subir archivo"], horizontal=True)
-    if origen == "Subir archivo" and almacen.USA_SUPABASE:
-        st.caption(f"Máximo {almacen.LIMITE_SUPABASE_MB} MB por archivo. "
-                   "Para videos más pesados usa un enlace de YouTube o Google Drive.")
+    origen = st.radio("Origen del video", ["Subir archivo", "Enlace de YouTube"], horizontal=True)
 
     with st.form("subir", clear_on_submit=True):
         titulo = st.text_input("Título *", max_chars=150)
-        categoria = st.selectbox("Categoría", categorias(videos), index=None, accept_new_options=True,
+        existentes = categorias(videos)
+        categoria = st.selectbox("Categoría", existentes, index=None, accept_new_options=True,
                                  placeholder="Elige una o escribe una nueva")
         descripcion = st.text_area("Descripción", max_chars=5000)
         if origen == "Subir archivo":
             archivo = st.file_uploader("Archivo de video * (MP4 recomendado)", type=FORMATOS_VIDEO)
             url = None
         else:
-            url = st.text_input("Enlace del video *",
-                                placeholder="https://www.youtube.com/watch?v=...  o  https://drive.google.com/file/d/...")
-            st.caption("En Google Drive, comparte el video como «Cualquier persona con el enlace».")
+            url = st.text_input("Enlace de YouTube *", placeholder="https://www.youtube.com/watch?v=...")
             archivo = None
         miniatura = st.file_uploader("Miniatura (opcional)", type=FORMATOS_IMAGEN)
 
         if not st.form_submit_button("Publicar tutorial", type="primary"):
             return
-        url = (url or "").strip()
         if not titulo.strip():
             st.error("El título es obligatorio.")
             return
         if origen == "Subir archivo" and not archivo:
             st.error("Selecciona un archivo de video.")
             return
-        if origen != "Subir archivo" and not url.startswith("http"):
+        if origen == "Enlace de YouTube" and not (url and url.strip().startswith("http")):
             st.error("Escribe un enlace válido.")
             return
 
-        try:
-            with st.spinner("Guardando el tutorial..."):
-                almacen.agregar_video({
-                    "id": str(uuid.uuid4()),
-                    "titulo": titulo.strip(),
-                    "descripcion": descripcion.strip(),
-                    "categoria": (categoria or "").strip() or "General",
-                    "archivo": almacen.guardar_archivo(archivo) if archivo else None,
-                    "url": url or None,
-                    "miniatura": almacen.guardar_archivo(miniatura) if miniatura else None,
-                    "fecha": datetime.now().isoformat(timespec="seconds"),
-                })
-        except (ErrorAlmacen, OSError) as e:
-            st.error(f"No se pudo guardar. {e}")
-            return
-        # Recargar para que el nuevo tutorial aparezca en la lista de abajo.
-        st.session_state.aviso = "✔ Tutorial publicado correctamente."
-        st.rerun()
+        with st.spinner("Guardando el video..."):
+            videos.append({
+                "id": str(uuid.uuid4()),
+                "titulo": titulo.strip(),
+                "descripcion": descripcion.strip(),
+                "categoria": (categoria or "").strip() or "General",
+                "archivo": guardar_archivo(archivo) if archivo else None,
+                "url": url.strip() if url else None,
+                "miniatura": guardar_archivo(miniatura) if miniatura else None,
+                "fecha": datetime.now().isoformat(timespec="seconds"),
+            })
+            guardar_videos(videos)
+        st.success("✔ Tutorial publicado correctamente.")
 
 
 def lista_publicados(videos):
@@ -226,7 +215,7 @@ def lista_publicados(videos):
         st.caption("Aún no has subido tutoriales.")
         return
 
-    for video in videos:
+    for video in sorted(videos, key=lambda v: v["fecha"], reverse=True):
         with st.expander(f"{video['titulo']}  ·  {video['categoria']}"):
             with st.form(f"editar-{video['id']}"):
                 titulo = st.text_input("Título", video["titulo"], max_chars=150)
@@ -236,23 +225,18 @@ def lista_publicados(videos):
                     if not titulo.strip():
                         st.error("El título es obligatorio.")
                     else:
-                        try:
-                            almacen.actualizar_video(video["id"], {
-                                "titulo": titulo.strip(),
-                                "categoria": categoria.strip() or "General",
-                                "descripcion": descripcion.strip(),
-                            })
-                            st.rerun()
-                        except ErrorAlmacen as e:
-                            st.error(f"No se pudo guardar. {e}")
+                        video.update(titulo=titulo.strip(), categoria=categoria.strip() or "General",
+                                     descripcion=descripcion.strip())
+                        guardar_videos(videos)
+                        st.rerun()
 
             confirmar = st.checkbox("Confirmo que quiero eliminar este tutorial", key=f"conf-{video['id']}")
             if st.button("🗑 Eliminar", key=f"del-{video['id']}", disabled=not confirmar):
-                try:
-                    almacen.eliminar_video(video)
-                    st.rerun()
-                except ErrorAlmacen as e:
-                    st.error(f"No se pudo eliminar. {e}")
+                videos.remove(video)
+                guardar_videos(videos)
+                borrar_archivo(video.get("archivo"))
+                borrar_archivo(video.get("miniatura"))
+                st.rerun()
 
 
 def pagina_admin():
@@ -265,16 +249,7 @@ def pagina_admin():
         st.session_state.admin = False
         st.rerun()
 
-    if almacen.USA_SUPABASE:
-        st.success("💾 Almacenamiento permanente activo (Supabase).")
-    else:
-        st.warning("⚠️ Supabase no está configurado: los tutoriales se guardan de forma temporal "
-                   "y se borrarán cuando la app se reinicie. Revisa el README para activarlo.")
-
-    if "aviso" in st.session_state:
-        st.success(st.session_state.pop("aviso"))
-
-    videos = cargar_videos()
+    videos = leer_videos()
     formulario_subida(videos)
     st.divider()
     lista_publicados(videos)

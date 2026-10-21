@@ -2,5 +2,19 @@
 # Tamaño máximo de archivo que se puede subir, en MB.
 maxUploadSize = 1024
 
+# Colores institucionales: azul #202B7A, rojo #FF1921, amarillo #FFCD00.
 [theme]
-primaryColor = "#2f5bea"
+base = "light"
+primaryColor = "#202B7A"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F2F3F9"
+textColor = "#1B1F3B"
+linkColor = "#FF1921"
+borderColor = "#D9DCEB"
+
+[theme.sidebar]
+backgroundColor = "#202B7A"
+secondaryBackgroundColor = "#2D3A94"
+textColor = "#FFFFFF"
+primaryColor = "#FFCD00"
+borderColor = "#3A4699"

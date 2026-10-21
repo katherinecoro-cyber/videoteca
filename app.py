@@ -4,7 +4,9 @@ Los estudiantes buscan y ven tutoriales; el administrador sube videos
 (archivo o enlace de YouTube) desde la sección "Administrar".
 """
 
+import base64
 import hmac
+import html
 import json
 import os
 import uuid
@@ -16,13 +18,79 @@ import streamlit as st
 BASE = Path(__file__).parent
 DATA_FILE = BASE / "data" / "videos.json"
 UPLOAD_DIR = BASE / "uploads"
+ASSETS = BASE / "assets"
 DATA_FILE.parent.mkdir(exist_ok=True)
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 FORMATOS_VIDEO = ["mp4", "webm", "ogg", "mov"]
 FORMATOS_IMAGEN = ["jpg", "jpeg", "png", "webp"]
 
-st.set_page_config(page_title="Videoteca de Tutoriales", page_icon="🎬", layout="wide")
+# Colores institucionales.
+AZUL = "#202B7A"
+ROJO = "#FF1921"
+AMARILLO = "#FFCD00"
+
+st.set_page_config(page_title="Videoteca de Tutoriales · Escuela de Posgrado UAB",
+                   page_icon=str(ASSETS / "escudo_uab.png"), layout="wide")
+
+
+# ---------- Encabezado institucional ----------
+
+def imagen_base64(nombre):
+    return base64.b64encode((ASSETS / nombre).read_bytes()).decode()
+
+
+def encabezado():
+    st.html(f"""
+    <style>
+      .vt-banner {{
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        background: #fff; border: 1px solid #D9DCEB; border-radius: 14px;
+        padding: 14px 20px; position: relative; overflow: hidden;
+      }}
+      .vt-banner::after {{
+        content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+        background: linear-gradient(90deg, {AZUL} 0 33.3%, {ROJO} 33.3% 66.6%, {AMARILLO} 66.6% 100%);
+      }}
+      .vt-banner img {{ height: 96px; width: auto; flex-shrink: 0; }}
+      .vt-banner .vt-texto {{ text-align: center; flex: 1; }}
+      .vt-banner h1 {{ color: {AZUL}; margin: 0; font-size: 1.9rem; line-height: 1.2; padding: 0; }}
+      .vt-banner p {{ margin: 4px 0 0; color: #4A4F6A; font-size: 0.95rem; }}
+      .vt-banner .vt-rojo {{ color: {ROJO}; font-weight: 700; }}
+      @media (max-width: 640px) {{
+        .vt-banner {{ padding: 10px 12px 16px; gap: 8px; }}
+        .vt-banner img {{ height: 56px; }}
+        .vt-banner h1 {{ font-size: 1.2rem; }}
+        .vt-banner p {{ font-size: 0.75rem; }}
+      }}
+    </style>
+    <div class="vt-banner">
+      <img src="data:image/png;base64,{imagen_base64('escudo_uab.png')}"
+           alt="Escudo de la Universidad Autónoma del Beni José Ballivián">
+      <div class="vt-texto">
+        <h1>Videoteca de Tutoriales</h1>
+        <p><span class="vt-rojo">Escuela de Posgrado</span> · Universidad Autónoma del Beni «José Ballivián»</p>
+      </div>
+      <img src="data:image/png;base64,{imagen_base64('escudo_posgrado.png')}"
+           alt="Escudo de la Escuela de Posgrado UAB">
+    </div>
+    """)
+    # Estilos generales: títulos en azul, botones con borde azul y realce rojo.
+    st.html(f"""
+    <style>
+      .stMainBlockContainer h1, .stMainBlockContainer h2, .stMainBlockContainer h3 {{ color: {AZUL}; }}
+      .stMainBlockContainer .stButton button[kind="secondary"] {{
+        border-color: {AZUL}; color: {AZUL}; font-weight: 600;
+      }}
+      .stMainBlockContainer .stButton button[kind="secondary"]:hover {{
+        background: {AZUL}; border-color: {AZUL}; color: #fff;
+      }}
+      .vt-categoria {{
+        color: {ROJO}; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }}
+    </style>
+    """)
 
 
 # ---------- Datos ----------
@@ -83,7 +151,8 @@ def tarjeta(video, columna):
             st.image(str(UPLOAD_DIR / video["miniatura"]), use_container_width=True)
         else:
             st.video(fuente_video(video))
-        st.caption(video["categoria"].upper())
+        st.markdown(f'<span class="vt-categoria">{html.escape(video["categoria"])}</span>',
+                    unsafe_allow_html=True)
         st.markdown(f"**{video['titulo']}**")
         if video["descripcion"]:
             resumen = video["descripcion"]
@@ -128,7 +197,7 @@ def pagina_catalogo():
             return
         st.warning("Ese tutorial ya no está disponible.")
 
-    st.title("🎬 Tutoriales")
+    st.header("🎬 Tutoriales")
     st.write("Busca un tema o elige una categoría y pulsa **Ver tutorial**.")
 
     busqueda = st.text_input("Buscar", placeholder="🔍 Buscar tutoriales...", label_visibility="collapsed")
@@ -261,4 +330,5 @@ pagina = st.navigation([
     st.Page(pagina_catalogo, title="Videoteca", icon="🎬", default=True),
     st.Page(pagina_admin, title="Administrar", icon="⚙️", url_path="admin"),
 ])
+encabezado()
 pagina.run()

@@ -25,13 +25,13 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 FORMATOS_VIDEO = ["mp4", "webm", "ogg", "mov"]
 FORMATOS_IMAGEN = ["jpg", "jpeg", "png", "webp"]
 
-# Colores institucionales.
-AZUL = "#202B7A"
-ROJO = "#FF1921"
-AMARILLO = "#FFCD00"
+# Colores institucionales de Digital Business School.
+AZUL_OSCURO = "#1E3460"
+AZUL = "#1D70B7"
+BLANCO = "#FFFFFF"
 
-st.set_page_config(page_title="Videoteca de Tutoriales · Escuela de Posgrado UAB",
-                   page_icon=str(ASSETS / "escudo_uab.png"), layout="wide")
+st.set_page_config(page_title="Videoteca de Tutoriales · Digital Business School",
+                   page_icon=str(ASSETS / "icono_dbs.png"), layout="wide")
 
 
 # ---------- Encabezado institucional ----------
@@ -44,49 +44,54 @@ def encabezado():
     st.html(f"""
     <style>
       .vt-banner {{
-        display: flex; align-items: center; justify-content: space-between; gap: 16px;
-        background: #fff; border: 1px solid #D9DCEB; border-radius: 14px;
-        padding: 14px 20px; position: relative; overflow: hidden;
+        display: flex; align-items: center; gap: 24px;
+        background: {BLANCO}; border: 1px solid #D6DEEA; border-radius: 14px;
+        padding: 16px 24px 20px; position: relative; overflow: hidden;
       }}
       .vt-banner::after {{
         content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
-        background: linear-gradient(90deg, {AZUL} 0 33.3%, {ROJO} 33.3% 66.6%, {AMARILLO} 66.6% 100%);
+        background: linear-gradient(90deg, {AZUL_OSCURO} 0 50%, {AZUL} 50% 100%);
       }}
-      .vt-banner img {{ height: 96px; width: auto; flex-shrink: 0; }}
-      .vt-banner .vt-texto {{ text-align: center; flex: 1; }}
-      .vt-banner h1 {{ color: {AZUL}; margin: 0; font-size: 1.9rem; line-height: 1.2; padding: 0; }}
-      .vt-banner p {{ margin: 4px 0 0; color: #4A4F6A; font-size: 0.95rem; }}
-      .vt-banner .vt-rojo {{ color: {ROJO}; font-weight: 700; }}
+      .vt-banner img {{ height: 72px; width: auto; flex-shrink: 0; }}
+      .vt-banner .vt-texto {{ border-left: 3px solid {AZUL}; padding-left: 20px; }}
+      .vt-banner h1 {{ color: {AZUL_OSCURO}; margin: 0; font-size: 1.9rem; line-height: 1.2; padding: 0; }}
+      .vt-banner p {{ margin: 4px 0 0; color: {AZUL}; font-size: 0.95rem; font-weight: 600; }}
       @media (max-width: 640px) {{
-        .vt-banner {{ padding: 10px 12px 16px; gap: 8px; }}
-        .vt-banner img {{ height: 56px; }}
-        .vt-banner h1 {{ font-size: 1.2rem; }}
-        .vt-banner p {{ font-size: 0.75rem; }}
+        .vt-banner {{ flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 12px 12px 18px; }}
+        .vt-banner img {{ height: 48px; }}
+        .vt-banner .vt-texto {{ border-left: none; padding-left: 0; }}
+        .vt-banner h1 {{ font-size: 1.3rem; }}
+        .vt-banner p {{ font-size: 0.8rem; }}
       }}
     </style>
     <div class="vt-banner">
-      <img src="data:image/png;base64,{imagen_base64('escudo_uab.png')}"
-           alt="Escudo de la Universidad Autónoma del Beni José Ballivián">
+      <img src="data:image/png;base64,{imagen_base64('logo_dbs_horizontal.png')}"
+           alt="Logo de Digital Business School">
       <div class="vt-texto">
         <h1>Videoteca de Tutoriales</h1>
-        <p><span class="vt-rojo">Escuela de Posgrado</span> · Universidad Autónoma del Beni «José Ballivián»</p>
+        <p>Digital Business School</p>
       </div>
-      <img src="data:image/png;base64,{imagen_base64('escudo_posgrado.png')}"
-           alt="Escudo de la Escuela de Posgrado UAB">
     </div>
     """)
-    # Estilos generales: títulos en azul, botones con borde azul y realce rojo.
+    # Logo vertical en el menú lateral, sobre una tarjeta blanca para que se vea sobre el azul.
+    st.sidebar.html(f"""
+    <div style="background:{BLANCO}; border-radius:14px; padding:16px; text-align:center; margin-bottom:8px;">
+      <img src="data:image/png;base64,{imagen_base64('logo_dbs_vertical.png')}"
+           alt="Logo de Digital Business School" style="max-width:120px; width:100%; height:auto;">
+    </div>
+    """)
+    # Estilos generales: títulos en azul oscuro, botones con borde azul.
     st.html(f"""
     <style>
-      .stMainBlockContainer h1, .stMainBlockContainer h2, .stMainBlockContainer h3 {{ color: {AZUL}; }}
+      .stMainBlockContainer h1, .stMainBlockContainer h2, .stMainBlockContainer h3 {{ color: {AZUL_OSCURO}; }}
       .stMainBlockContainer .stButton button[kind="secondary"] {{
         border-color: {AZUL}; color: {AZUL}; font-weight: 600;
       }}
       .stMainBlockContainer .stButton button[kind="secondary"]:hover {{
-        background: {AZUL}; border-color: {AZUL}; color: #fff;
+        background: {AZUL}; border-color: {AZUL}; color: {BLANCO};
       }}
       .vt-categoria {{
-        color: {ROJO}; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em;
+        color: {AZUL}; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em;
         text-transform: uppercase;
       }}
     </style>

@@ -1,6 +1,6 @@
 # Videoteca de tutoriales (Streamlit)
 
-Escuela de Posgrado · Universidad Autónoma del Beni «José Ballivián».
+Digital Business School (DBS).
 
 Aplicación sencilla para publicar videos tutoriales y que los estudiantes los vean desde el navegador.
 
@@ -52,7 +52,7 @@ permanente hace falta conectar un almacenamiento externo (por ejemplo, Supabase 
 
 ## Configuración
 
-- `.streamlit/config.toml`: colores institucionales (azul `#202B7A`, rojo `#FF1921`, amarillo `#FFCD00`) y `maxUploadSize` define el tamaño máximo de subida (1024 MB).
-- `assets/`: escudos de la universidad y de la Escuela de Posgrado.
+- `.streamlit/config.toml`: colores institucionales (azul oscuro `#1E3460`, azul `#1D70B7`, blanco `#FFFFFF`) y `maxUploadSize` define el tamaño máximo de subida (1024 MB).
+- `assets/`: logos de Digital Business School (horizontal, vertical e ícono).
 - `uploads/`: archivos de video y miniaturas.
 - `data/videos.json`: datos de cada tutorial.

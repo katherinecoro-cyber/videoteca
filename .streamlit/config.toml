@@ -2,19 +2,20 @@
 # Tamaño máximo de archivo que se puede subir, en MB.
 maxUploadSize = 1024
 
-# Colores institucionales: azul #202B7A, rojo #FF1921, amarillo #FFCD00.
+# Colores institucionales de Digital Business School:
+# azul oscuro #1E3460, azul #1D70B7, blanco #FFFFFF.
 [theme]
 base = "light"
-primaryColor = "#202B7A"
+primaryColor = "#1D70B7"
 backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F2F3F9"
-textColor = "#1B1F3B"
-linkColor = "#FF1921"
-borderColor = "#D9DCEB"
+secondaryBackgroundColor = "#F1F5FA"
+textColor = "#1E3460"
+linkColor = "#1D70B7"
+borderColor = "#D6DEEA"
 
 [theme.sidebar]
-backgroundColor = "#202B7A"
-secondaryBackgroundColor = "#2D3A94"
+backgroundColor = "#1E3460"
+secondaryBackgroundColor = "#2A4478"
 textColor = "#FFFFFF"
-primaryColor = "#FFCD00"
-borderColor = "#3A4699"
+primaryColor = "#FFFFFF"
+borderColor = "#34507F"

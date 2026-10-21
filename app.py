@@ -44,7 +44,7 @@ def encabezado():
     st.html(f"""
     <style>
       .vt-banner {{
-        display: flex; align-items: center; gap: 24px;
+        display: flex; align-items: center; justify-content: space-between; gap: 24px;
         background: {BLANCO}; border: 1px solid #D6DEEA; border-radius: 14px;
         padding: 16px 24px 20px; position: relative; overflow: hidden;
       }}
@@ -52,32 +52,30 @@ def encabezado():
         content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
         background: linear-gradient(90deg, {AZUL_OSCURO} 0 50%, {AZUL} 50% 100%);
       }}
-      .vt-banner img {{ height: 72px; width: auto; flex-shrink: 0; }}
-      .vt-banner .vt-texto {{ border-left: 3px solid {AZUL}; padding-left: 20px; }}
+      .vt-banner img {{ width: auto; flex-shrink: 0; }}
+      .vt-banner .vt-logo-v {{ height: 110px; }}
+      .vt-banner .vt-logo-h {{ height: 64px; }}
+      .vt-banner .vt-texto {{ flex: 1; text-align: center; }}
       .vt-banner h1 {{ color: {AZUL_OSCURO}; margin: 0; font-size: 1.9rem; line-height: 1.2; padding: 0; }}
       .vt-banner p {{ margin: 4px 0 0; color: {AZUL}; font-size: 0.95rem; font-weight: 600; }}
       @media (max-width: 640px) {{
-        .vt-banner {{ flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 12px 12px 18px; }}
-        .vt-banner img {{ height: 48px; }}
-        .vt-banner .vt-texto {{ border-left: none; padding-left: 0; }}
+        .vt-banner {{ flex-wrap: wrap; justify-content: center; gap: 12px 20px; padding: 12px 12px 18px; }}
+        .vt-banner .vt-logo-v {{ height: 64px; }}
+        .vt-banner .vt-logo-h {{ height: 36px; }}
+        .vt-banner .vt-texto {{ order: 3; flex-basis: 100%; }}
         .vt-banner h1 {{ font-size: 1.3rem; }}
         .vt-banner p {{ font-size: 0.8rem; }}
       }}
     </style>
     <div class="vt-banner">
-      <img src="data:image/png;base64,{imagen_base64('logo_dbs_horizontal.png')}"
+      <img class="vt-logo-v" src="data:image/png;base64,{imagen_base64('logo_dbs_vertical.png')}"
            alt="Logo de Digital Business School">
       <div class="vt-texto">
         <h1>Videoteca de Tutoriales</h1>
         <p>Digital Business School</p>
       </div>
-    </div>
-    """)
-    # Logo vertical en el menú lateral, sobre una tarjeta blanca para que se vea sobre el azul.
-    st.sidebar.html(f"""
-    <div style="background:{BLANCO}; border-radius:14px; padding:16px; text-align:center; margin-bottom:8px;">
-      <img src="data:image/png;base64,{imagen_base64('logo_dbs_vertical.png')}"
-           alt="Logo de Digital Business School" style="max-width:120px; width:100%; height:auto;">
+      <img class="vt-logo-h" src="data:image/png;base64,{imagen_base64('logo_dbs_horizontal.png')}"
+           alt="Logo de Digital Business School">
     </div>
     """)
     # Estilos generales: títulos en azul oscuro, botones con borde azul.

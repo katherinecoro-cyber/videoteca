@@ -10,9 +10,11 @@ import html
 import os
 import re
 import uuid
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import altair as alt
+import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -184,6 +186,37 @@ def contrasena_admin():
         return os.environ.get("ADMIN_PASSWORD", "admin123")
 
 
+# ---------- Conteo de visitas ----------
+# Cada navegador recibe una cookie con un código al azar (sin datos personales),
+# así se cuenta a cada persona una vez por día aunque recargue la página.
+
+def es_organizadora():
+    return st.session_state.get("admin") or bool(st.context.cookies.get("vt_organizador"))
+
+
+def contar_visita():
+    if "visitante" in st.session_state:
+        return
+    cookies = st.context.cookies
+    st.session_state.visitante = cookies.get("vt_visitante") or str(uuid.uuid4())
+    dia = almacen.hoy()
+    if es_organizadora() or cookies.get("vt_ultimo_dia") == dia:
+        return
+    almacen.registrar_visita(nueva_persona="vt_visitante" not in cookies)
+    st.session_state.setdefault("cookies_pendientes", {}).update(
+        vt_visitante=st.session_state.visitante, vt_ultimo_dia=dia)
+
+
+def guardar_cookies():
+    """Escribe en el navegador las cookies pendientes de esta sesión."""
+    pendientes = st.session_state.get("cookies_pendientes")
+    if pendientes:
+        js = "".join(f"window.parent.document.cookie='{k}={v}; path=/; max-age=31536000; SameSite=Lax';"
+                     for k, v in pendientes.items())
+        st.html("<style>.stElementContainer:has(iframe[height='0']) {display: none;}</style>")
+        components.html(f"<script>{js}</script>", height=0)
+
+
 # ---------- Vista de estudiantes ----------
 
 def tarjeta(video, columna):
@@ -201,6 +234,11 @@ def tarjeta(video, columna):
 
 
 def pagina_reproductor(video, videos):
+    vistos = st.session_state.setdefault("vistos", set())
+    if video["id"] not in vistos and not es_organizadora():
+        vistos.add(video["id"])
+        almacen.registrar_vista(video["id"], st.session_state.get("visitante"))
+
     if st.button("← Volver a todos los tutoriales"):
         del st.query_params["video"]
         st.rerun()
@@ -361,6 +399,10 @@ def pagina_admin():
         formulario_login()
         return
 
+    # Marca este navegador como de la organizadora para no contar sus visitas.
+    if not st.context.cookies.get("vt_organizador"):
+        st.session_state.setdefault("cookies_pendientes", {})["vt_organizador"] = "1"
+
     st.title("⚙️ Administrar videoteca")
     if st.button("Cerrar sesión"):
         st.session_state.admin = False
@@ -375,9 +417,62 @@ def pagina_admin():
         st.success(st.session_state.pop("aviso"))
 
     videos = cargar_videos()
-    formulario_subida(videos)
-    st.divider()
-    lista_publicados(videos)
+    pestana_tutoriales, pestana_estadisticas = st.tabs(["🎬 Tutoriales", "📊 Estadísticas"])
+    with pestana_tutoriales:
+        formulario_subida(videos)
+        st.divider()
+        lista_publicados(videos)
+    with pestana_estadisticas:
+        panel_estadisticas(videos)
+
+
+def panel_estadisticas(videos):
+    try:
+        datos = almacen.leer_estadisticas()
+    except (ErrorAlmacen, requests.RequestException) as e:
+        st.error(f"No se pudieron cargar las estadísticas. {e}")
+        return
+
+    visitas = datos.get("visitas_por_dia", {})
+    vistas_video = datos.get("vistas_por_video", {})
+    hoy = date.fromisoformat(almacen.hoy())
+    ultimos_7 = sum(visitas.get((hoy - timedelta(days=i)).isoformat(), 0) for i in range(7))
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Personas hoy", visitas.get(hoy.isoformat(), 0))
+    c2.metric("Ingresos en 7 días", ultimos_7)
+    c3.metric("Personas distintas en total", sum(datos.get("personas_nuevas_por_dia", {}).values()))
+    c4.metric("Tutoriales vistos en total", sum(vistas_video.values()))
+
+    st.subheader("Personas que entraron por día · últimos 30 días")
+    dias = [hoy - timedelta(days=i) for i in range(29, -1, -1)]
+    serie = pd.DataFrame({"Día": pd.to_datetime(dias),
+                          "Personas": [visitas.get(d.isoformat(), 0) for d in dias]})
+    grafico = alt.Chart(serie).mark_bar(color=AZUL, cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+        x=alt.X("yearmonthdate(Día):O", title=None,
+                axis=alt.Axis(format="%d/%m", labelAngle=-45, labelOverlap=True)),
+        y=alt.Y("Personas:Q", title=None, axis=alt.Axis(tickMinStep=1, format="d")),
+        tooltip=[alt.Tooltip("Día:T", title="Día", format="%d/%m/%Y"), alt.Tooltip("Personas:Q")],
+    ).properties(height=260)
+    st.altair_chart(grafico, use_container_width=True)
+
+    st.subheader("Vistas por tutorial")
+    if not videos:
+        st.caption("Aún no hay tutoriales publicados.")
+    else:
+        tabla = pd.DataFrame([{"Tutorial": v["titulo"], "Categoría": v["categoria"],
+                               "Vistas": vistas_video.get(v["id"], 0)} for v in videos])
+        tabla = tabla.sort_values("Vistas", ascending=False, kind="stable")
+        st.dataframe(tabla, hide_index=True, use_container_width=True, column_config={
+            "Vistas": st.column_config.ProgressColumn(
+                "Vistas", format="%d", min_value=0, max_value=max(int(tabla["Vistas"].max()), 1)),
+        })
+
+    st.caption("Cada navegador cuenta como una persona: se cuenta una vez por día aunque recargue la página. "
+               "Si alguien usa otro navegador, otro dispositivo o una ventana de incógnito, cuenta como otra "
+               "persona. **Ingresos en 7 días** suma las personas de cada día (quien entra 3 días cuenta 3 "
+               "veces). **Vistas:** cada vez que alguien abre la página de un tutorial, una vez por día. "
+               "Tus propias visitas como organizadora no se cuentan. Los datos se guardan cada 2 minutos.")
 
 
 # ---------- Navegación ----------
@@ -387,4 +482,9 @@ pagina = st.navigation([
     st.Page(pagina_admin, title="Administrar", icon="⚙️", url_path="admin"),
 ])
 encabezado()
+# La visita se cuenta solo en la videoteca (no en Administrar), y las cookies se escriben
+# antes de mostrar la página para que queden guardadas aunque la persona recargue rápido.
+if pagina.title == "Videoteca":
+    contar_visita()
+guardar_cookies()
 pagina.run()

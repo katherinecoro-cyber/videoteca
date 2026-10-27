@@ -14,6 +14,8 @@ Aplicación sencilla para publicar videos tutoriales y que los estudiantes los v
 **Administrar** (con contraseña)
 - Publicar tutoriales con un enlace de **YouTube** o **Google Drive** (la miniatura se toma automáticamente).
 - Editar título, categoría y descripción; eliminar tutoriales.
+- **Estadísticas** (solo visibles para la organizadora): personas que entran por día, personas
+  distintas en total y cuántas veces se abrió cada tutorial.
 
 ## Ejecutar en tu computadora
 
@@ -59,13 +61,25 @@ como enlaces de YouTube o Google Drive, que tampoco se borran.
    ```
 3. Guarda. En **Administrar** verás «💾 Guardado permanente activo».
 
+Las estadísticas de uso se guardan en el mismo lugar, en `data/estadisticas.json`. Para no hacer un
+cambio en GitHub por cada visita, se acumulan en memoria y se guardan juntas cada 2 minutos (o cada 25
+visitas); si la app se reinicia justo antes, se pueden perder los conteos de esos últimos minutos.
+
+### Cómo se cuentan las visitas
+
+Cada navegador recibe una cookie con un código al azar (sin datos personales). Así cada persona cuenta
+una vez por día aunque recargue la página, y cada tutorial cuenta una vez por persona y día. Otro
+navegador, otro dispositivo o una ventana de incógnito cuentan como otra persona. El navegador de la
+organizadora queda marcado al iniciar sesión en Administrar y sus visitas no se cuentan.
+
 Sin el token, la app funciona igual pero los tutoriales se borran al reiniciarse.
-Opcionales: `VIDEOTECA_GITHUB_REPO` (por defecto `katherinecoro-cyber/videoteca`) y
-`VIDEOTECA_RAMA_DATOS` (por defecto `datos-videoteca`).
+Opcionales: `VIDEOTECA_GITHUB_REPO` (por defecto `katherinecoro-cyber/videoteca`),
+`VIDEOTECA_RAMA_DATOS` (por defecto `datos-videoteca`) y `VIDEOTECA_ZONA_HORARIA`
+(por defecto `America/La_Paz`, para decidir a qué día pertenece cada visita).
 
 ## Configuración
 
 - `.streamlit/config.toml`: colores institucionales (azul oscuro `#1E3460`, azul `#1D70B7`, blanco `#FFFFFF`) y `maxUploadSize` define el tamaño máximo de subida (1024 MB).
 - `assets/`: logos de Digital Business School (horizontal, vertical e ícono).
-- `almacen.py`: guarda y lee la lista de tutoriales (GitHub, o carpeta local si no hay token).
+- `almacen.py`: guarda y lee la lista de tutoriales y las estadísticas (GitHub, o carpeta local si no hay token).
 - `data/videos.json`: lista de tutoriales cuando se usa el modo local.

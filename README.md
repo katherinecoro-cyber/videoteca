@@ -19,7 +19,7 @@ Aplicación sencilla para publicar videos tutoriales y que los estudiantes los v
 
 ## Ejecutar en tu computadora
 
-Requiere Python 3.9 o superior.
+Requiere Python 3.10 o superior.
 
 ```bash
 pip install -r requirements.txt
@@ -31,11 +31,15 @@ Se abrirá http://localhost:8501. La sección **Administrar** está en el menú 
 Contraseña de administrador: copia `.streamlit/secrets.toml.example` como `.streamlit/secrets.toml`
 y cambia el valor de `ADMIN_PASSWORD`. Si no la defines, la contraseña es `admin123`.
 
+## Instalar en un servidor propio
+
+Ver [DESPLIEGUE.md](DESPLIEGUE.md) (instalación directa o con Docker, nginx y HTTPS).
+
 ## Publicar en Streamlit Community Cloud
 
 1. Entra en https://share.streamlit.io e inicia sesión con tu cuenta de GitHub.
 2. Pulsa **Create app → Deploy a public app from GitHub**.
-3. Elige el repositorio `videoteca`, la rama `main` y el archivo `app.py`.
+3. Elige el repositorio `videoteca`, la rama principal del repositorio y el archivo `app.py`.
 4. En **Advanced settings → Secrets** escribe:
    ```toml
    ADMIN_PASSWORD = "tu-contraseña-segura"
